@@ -5,11 +5,11 @@ import { sha256 } from '@noble/hashes/sha256';
 import { sha512 } from '@noble/hashes/sha512';
 import { bytes as assertBytes } from '@noble/hashes/_assert';
 import { bytesToHex, concatBytes, createView, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
-import { secp256k1 as secp } from '@noble/curves/secp256k1';
+import { _starkCurve} from '@scure/starknet';
 import { mod } from '@noble/curves/abstract/modular';
 import { base58check as base58checker } from '@scure/base';
 
-const Point = secp.ProjectivePoint;
+const Point = _starkCurve.ProjectivePoint;
 const base58check = base58checker(sha256);
 
 function bytesToNumber(bytes: Uint8Array): bigint {
@@ -156,13 +156,13 @@ export class HDKey {
       throw new Error('HDKey: publicKey and privateKey at same time.');
     }
     if (opt.privateKey) {
-      if (!secp.utils.isValidPrivateKey(opt.privateKey)) {
+      if (!_starkCurve.utils.isValidPrivateKey(opt.privateKey)) {
         throw new Error('Invalid private key');
       }
       this.privKey =
         typeof opt.privateKey === 'bigint' ? opt.privateKey : bytesToNumber(opt.privateKey);
       this.privKeyBytes = numberToBytes(this.privKey);
-      this.pubKey = secp.getPublicKey(opt.privateKey, true);
+      this.pubKey = _starkCurve.getPublicKey(opt.privateKey, true);
     } else if (opt.publicKey) {
       this.pubKey = Point.fromHex(opt.publicKey).toRawBytes(true); // force compressed point
     } else {
@@ -220,7 +220,7 @@ export class HDKey {
     const I = hmac(sha512, this.chainCode, data);
     const childTweak = bytesToNumber(I.slice(0, 32));
     const chainCode = I.slice(32);
-    if (!secp.utils.isValidPrivateKey(childTweak)) {
+    if (!_starkCurve.utils.isValidPrivateKey(childTweak)) {
       throw new Error('Tweak bigger than curve order');
     }
     const opt: HDKeyOpt = {
@@ -233,8 +233,8 @@ export class HDKey {
     try {
       // Private parent key -> private child key
       if (this.privateKey) {
-        const added = mod(this.privKey! + childTweak, secp.CURVE.n);
-        if (!secp.utils.isValidPrivateKey(added)) {
+        const added = mod(this.privKey! + childTweak, _starkCurve.CURVE.n);
+        if (!_starkCurve.utils.isValidPrivateKey(added)) {
           throw new Error('The tweak was out of range or the resulted private key is invalid');
         }
         opt.privateKey = added;
@@ -257,7 +257,7 @@ export class HDKey {
       throw new Error('No privateKey set!');
     }
     assertBytes(hash, 32);
-    return secp.sign(hash, this.privKey!).toCompactRawBytes();
+    return _starkCurve.sign(hash, this.privKey!).toCompactRawBytes();
   }
 
   public verify(hash: Uint8Array, signature: Uint8Array): boolean {
@@ -268,11 +268,11 @@ export class HDKey {
     }
     let sig;
     try {
-      sig = secp.Signature.fromCompact(signature);
+      sig = _starkCurve.Signature.fromCompact(signature);
     } catch (error) {
       return false;
     }
-    return secp.verify(sig, hash, this.publicKey);
+    return _starkCurve.verify(sig, hash, this.publicKey);
   }
 
   public wipePrivateData(): this {
